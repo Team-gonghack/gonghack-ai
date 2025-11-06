@@ -60,9 +60,10 @@ except Exception as e:
     ser_esp = None
 
 # -----------------------------
-# 4. 데이터 버퍼
+# 4. 데이터 버퍼 및 임시 저장
 # -----------------------------
 data_buffer = []
+mpu_temp = {}  # {'MPU2': np.array, 'MPU3': np.array} 임시 저장
 
 def process_realtime_data(new_row_data):
     data_buffer.append(new_row_data)
@@ -102,50 +103,47 @@ print("\n--- 실시간 예측 + STM → ESP32 시리얼 통신 시작 ---")
 
 try:
     while True:
-        new_row = None
-
-        # STM 데이터 읽기
         if ser_stm and ser_stm.in_waiting:
             line = ser_stm.readline().decode('latin-1').strip()
             if line == "":
                 continue
 
-            print(f"[STM RAW] {line}")  # 콘솔 출력
+            print(f"[STM RAW] {line}")
 
             # I2C 오류 무시
             if "I2C_WriteError" in line:
                 print(f"[WARNING] 센서 오류 무시: {line}")
                 continue
 
-            # CSV 데이터 처리 (문자열 제거, 숫자만)
-            values = []
-            for x in line.split(','):
-                try:
-                    values.append(int(x))
-                except ValueError:
-                    continue  # MPU1, MPU2, MPU3 등 무시
+            # MPU2/MPU3 숫자 추출
+            try:
+                parts = line.split(',')
+                sensor_id = parts[0]
+                values = [int(x) for x in parts[1:] if x.strip()]
+                if len(values) != 6:
+                    print(f"[WARNING] 잘못된 센서 데이터 길이: {len(values)}")
+                    continue
 
-            if len(values) == 12:
-                new_row = np.array(values, dtype=np.int32)
-            else:
-                print(f"[WARNING] 잘못된 센서 데이터 길이: {len(values)}")
+                if sensor_id in ['MPU2', 'MPU3']:
+                    mpu_temp[sensor_id] = np.array(values, dtype=np.int32)
 
-        # 새로운 데이터 없으면 루프 계속
-        if new_row is None:
-            continue
+                # 두 센서 데이터가 모두 들어왔으면 합쳐서 모델 처리
+                if 'MPU2' in mpu_temp and 'MPU3' in mpu_temp:
+                    combined_row = np.concatenate([mpu_temp['MPU2'], mpu_temp['MPU3']])
+                    mpu_temp.clear()  # 초기화
+                    result = process_realtime_data(combined_row)
 
-        # 모델 처리
-        result = process_realtime_data(new_row)
+                    if result is not None:
+                        normality_score, class_name = result
+                        print(f"[MODEL] 정상도: {normality_score}% | 동작: {class_name}")
 
-        if result is not None:
-            normality_score, class_name = result
-            print(f"[MODEL] 정상도: {normality_score}% | 동작: {class_name}")
+                        if ser_esp:
+                            csv_line = f"{normality_score},{class_name}\n"
+                            ser_esp.write(csv_line.encode('utf-8'))
+                            print(f"[ESP CSV] {csv_line.strip()}")
 
-            # ESP32 전송
-            if ser_esp:
-                csv_line = f"{normality_score},{class_name}\n"
-                ser_esp.write(csv_line.encode('utf-8'))
-                print(f"[ESP CSV] {csv_line.strip()}")
+            except Exception as e:
+                print(f"[ERROR] 센서 데이터 파싱 실패: {line} -> {e}")
 
 except KeyboardInterrupt:
     print("\n[INFO] 종료")
