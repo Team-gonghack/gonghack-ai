@@ -14,11 +14,11 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # 애플리케이션 코드 복사
-COPY realtime_predict_serial.py .
+COPY main.py .
 COPY running_scaler.joblib .
 COPY running_model.tflite .
 COPY multi_class_scaler.joblib .
 COPY multi_class_model.tflite .
 
 # 실행
-CMD ["python", "realtime_predict_serial.py"]
+CMD ["python", "main.py"]
