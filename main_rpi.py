@@ -117,15 +117,18 @@ try:
                 print(f"[WARNING] 센서 오류 무시: {line}")
                 continue
 
-            # CSV 데이터 처리
-            try:
-                values = [int(x) for x in line.split(',') if x.strip()]
-                if len(values) == 12:
-                    new_row = np.array(values, dtype=np.int32)
-                else:
-                    print(f"[WARNING] 잘못된 센서 데이터 길이: {len(values)}")
-            except Exception as e:
-                print(f"[ERROR] 센서 데이터 파싱 실패: {line} -> {e}")
+            # CSV 데이터 처리 (문자열 제거, 숫자만)
+            values = []
+            for x in line.split(','):
+                try:
+                    values.append(int(x))
+                except ValueError:
+                    continue  # MPU1, MPU2, MPU3 등 무시
+
+            if len(values) == 12:
+                new_row = np.array(values, dtype=np.int32)
+            else:
+                print(f"[WARNING] 잘못된 센서 데이터 길이: {len(values)}")
 
         # 새로운 데이터 없으면 루프 계속
         if new_row is None:
