@@ -11,7 +11,7 @@ COPY running_model.tflite .
 COPY multi_class_scaler.joblib .
 COPY multi_class_model.tflite .
 
-CMD pip install numpy joblib tflite-runtime pyserial
+RUN pip install numpy==1.25.2 joblib tflite-runtime pyserial
 
 # 실행
 CMD ["python", "main.py"]
