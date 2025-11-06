@@ -19,13 +19,13 @@ if USE_MODEL == "multi_class":
     MODEL_PATH = 'multi_class_model.tflite'
     SCALER_PATH = 'multi_class_scaler.joblib'
     # TODO: 모델의 실제 출력 순서에 맞는 라벨 리스트로 수정해야 합니다.
-    LABELS = ['앉기', '서기', '걷기', '뛰기', '계단 오르기'] 
+    LABELS = [0,1,2] 
     
 elif USE_MODEL == "running":
     MODEL_PATH = 'running_model.tflite'
     SCALER_PATH = 'running_scaler.joblib'
     # TODO: 모델의 실제 출력 순서에 맞는 라벨 리스트로 수정해야 합니다.
-    LABELS = ['정상 움직임', '비정상 움직임'] 
+    LABELS = [0,1,2] 
 
 # 로드될 객체 초기화
 interpreter = None
