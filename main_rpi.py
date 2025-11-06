@@ -1,6 +1,6 @@
 import numpy as np
 import joblib
-import tflite_runtime.interpreter as tflite
+import tensorflow as tf   # ✅ tflite_runtime 대신 TensorFlow 사용
 import time
 import serial
 import sys
@@ -24,12 +24,13 @@ try:
     scaler_model1 = joblib.load(SCALER_MODEL1_PATH)
     scaler_model2 = joblib.load(SCALER_MODEL2_PATH)
 
-    interpreter_model1 = tflite.Interpreter(model_path=TFLITE_MODEL1_PATH)
+    # ✅ TensorFlow TFLite 인터프리터 사용
+    interpreter_model1 = tf.lite.Interpreter(model_path=TFLITE_MODEL1_PATH)
     interpreter_model1.allocate_tensors()
     input_details_m1 = interpreter_model1.get_input_details()
     output_details_m1 = interpreter_model1.get_output_details()
 
-    interpreter_model2 = tflite.Interpreter(model_path=TFLITE_MODEL2_PATH)
+    interpreter_model2 = tf.lite.Interpreter(model_path=TFLITE_MODEL2_PATH)
     interpreter_model2.allocate_tensors()
     input_details_m2 = interpreter_model2.get_input_details()
     output_details_m2 = interpreter_model2.get_output_details()
