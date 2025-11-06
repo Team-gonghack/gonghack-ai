@@ -1,0 +1,12 @@
+version: "3.9"
+
+services:
+  realtime_predict:
+    build: .
+    container_name: realtime_predict
+    restart: unless-stopped
+    tty: true
+    devices:
+      - "/dev/ttyUSB0:/dev/ttyUSB0"   # 시리얼 장치 연결
+    environment:
+      - PYTHONUNBUFFERED=1
