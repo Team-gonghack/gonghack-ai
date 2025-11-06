@@ -1,5 +1,3 @@
-라베파 러닝 정확도 AI 예제
-```Python
 import numpy as np
 import joblib
 import tflite_runtime.interpreter as tflite
@@ -91,4 +89,3 @@ for i in range(120): # 120 프레임 시뮬레이션
         print(f" [프레임 {i}] 데이터 수집 중... ({len(data_buffer)}/{TIME_STEPS})")
         
     time.sleep(0.02) # 실제 센서 딜레이처럼 0.02초 대기
-```
