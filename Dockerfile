@@ -6,7 +6,7 @@ WORKDIR /app
 
 # 시스템 패키지 설치
 RUN apt-get update && \
-    apt-get install -y build-essential python3-dev libatlas-base-dev && \
+    apt-get install -y build-essential python3-dev && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # 필요한 파이썬 패키지 설치
