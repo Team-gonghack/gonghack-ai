@@ -130,7 +130,8 @@ try:
                         print(f"[MODEL] 정상도: {normality_score}% | 동작 숫자: {movement_num}")
 
                         if ser_esp:
-                            ser_esp.write(bytes([normality_score, movement_num]))
+                            # ✅ ESP32와 호환되도록 CSV 문자열 전송
+                            ser_esp.write(f"{normality_score},{movement_num}\n".encode())
                             print(f"[ESP CSV] {normality_score},{movement_num}")
 
             except Exception as e:
