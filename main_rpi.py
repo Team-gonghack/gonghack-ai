@@ -13,10 +13,7 @@ TFLITE_MODEL1_PATH = 'binary_model_compatible.tflite'
 SCALER_MODEL2_PATH = 'multi_class_scaler_compatible.joblib'
 TFLITE_MODEL2_PATH = 'multi_class_model_compatible.tflite'
 
-CLASS_NAMES_MODEL2 = {0: "걷기", 1: "뛰기", 2: "정지"}
-CLASS_ID_MAP = {v: k for k, v in CLASS_NAMES_MODEL2.items()}  # 문자열 → 숫자 매핑
-
-REQUIRED_SENSORS = ['MPU1', 'MPU2', 'MPU3']  # 항상 이 순서대로 합침
+REQUIRED_SENSORS = ['MPU2', 'MPU3']  # MPU1 무시
 
 # -----------------------------
 # 2. 모델 및 스케일러 로드
@@ -66,7 +63,7 @@ except Exception as e:
 # 4. 데이터 버퍼 및 임시 저장
 # -----------------------------
 data_buffer = []
-mpu_temp = {}  # 센서별 임시 저장 {'MPU1': np.array, 'MPU2': np.array, 'MPU3': np.array}
+mpu_temp = {}  # {'MPU2': np.array, 'MPU3': np.array}
 
 def process_realtime_data(new_row_data):
     data_buffer.append(new_row_data)
@@ -85,17 +82,15 @@ def process_realtime_data(new_row_data):
         abnormal_prob = output_data_m1[0][0]
         normality_score = int((1 - abnormal_prob) * 100)
 
-        # 모델2: 동작 분류
+        # 모델2: 동작 분류 (숫자 그대로)
         scaled_m2 = scaler_model2.transform(buffer_array)
         input_tensor_m2 = np.array([scaled_m2], dtype=np.float32)
         interpreter_model2.set_tensor(input_details_m2[0]['index'], input_tensor_m2)
         interpreter_model2.invoke()
         output_data_m2 = interpreter_model2.get_tensor(output_details_m2[0]['index'])
-        probabilities_m2 = output_data_m2[0]
-        pred_index = np.argmax(probabilities_m2)
-        class_name = CLASS_NAMES_MODEL2[pred_index]
+        pred_index = int(np.argmax(output_data_m2[0]))  # 숫자 그대로
 
-        return normality_score, class_name
+        return normality_score, pred_index
     else:
         return None
 
@@ -113,7 +108,6 @@ try:
 
             print(f"[STM RAW] {line}")
 
-            # I2C 오류 무시
             if "I2C_WriteError" in line:
                 print(f"[WARNING] 센서 오류 무시: {line}")
                 continue
@@ -122,29 +116,22 @@ try:
                 parts = line.split(',')
                 sensor_id = parts[0]
                 values = [int(x) for x in parts[1:] if x.strip()]
-                if len(values) != 6:
-                    print(f"[WARNING] 잘못된 센서 데이터 길이: {len(values)}")
-                    continue
 
                 if sensor_id in REQUIRED_SENSORS:
                     mpu_temp[sensor_id] = np.array(values, dtype=np.int32)
 
-                # 모든 센서 데이터가 들어왔는지 확인
                 if all(s in mpu_temp for s in REQUIRED_SENSORS):
-                    # 항상 MPU1, MPU2, MPU3 순서로 합침
                     combined_row = np.concatenate([mpu_temp[s] for s in REQUIRED_SENSORS])
-                    mpu_temp.clear()  # 초기화
+                    mpu_temp.clear()
                     result = process_realtime_data(combined_row)
 
                     if result is not None:
-                        normality_score, class_name = result
-                        print(f"[MODEL] 정상도: {normality_score}% | 동작: {class_name}")
+                        normality_score, movement_num = result
+                        print(f"[MODEL] 정상도: {normality_score}% | 동작 숫자: {movement_num}")
 
                         if ser_esp:
-                            # 문자열 대신 숫자 ID 전송
-                            class_id = CLASS_ID_MAP.get(class_name, 255)
-                            ser_esp.write(bytes([normality_score, class_id]))
-                            print(f"[ESP CSV] {normality_score},{class_id}")
+                            ser_esp.write(bytes([normality_score, movement_num]))
+                            print(f"[ESP CSV] {normality_score},{movement_num}")
 
             except Exception as e:
                 print(f"[ERROR] 센서 데이터 파싱 실패: {line} -> {e}")
