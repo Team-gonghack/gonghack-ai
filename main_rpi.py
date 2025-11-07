@@ -16,6 +16,8 @@ TFLITE_MODEL2_PATH = 'multi_class_model_compatible.tflite'
 CLASS_NAMES_MODEL2 = {0: "걷기", 1: "뛰기", 2: "정지"}
 CLASS_ID_MAP = {v: k for k, v in CLASS_NAMES_MODEL2.items()}  # 문자열 → 숫자 매핑
 
+REQUIRED_SENSORS = ['MPU1', 'MPU2', 'MPU3']  # 항상 이 순서대로 합침
+
 # -----------------------------
 # 2. 모델 및 스케일러 로드
 # -----------------------------
@@ -64,7 +66,7 @@ except Exception as e:
 # 4. 데이터 버퍼 및 임시 저장
 # -----------------------------
 data_buffer = []
-mpu_temp = {}  # {'MPU2': np.array, 'MPU3': np.array} 임시 저장
+mpu_temp = {}  # 센서별 임시 저장 {'MPU1': np.array, 'MPU2': np.array, 'MPU3': np.array}
 
 def process_realtime_data(new_row_data):
     data_buffer.append(new_row_data)
@@ -116,7 +118,6 @@ try:
                 print(f"[WARNING] 센서 오류 무시: {line}")
                 continue
 
-            # MPU2/MPU3 숫자 추출
             try:
                 parts = line.split(',')
                 sensor_id = parts[0]
@@ -125,12 +126,13 @@ try:
                     print(f"[WARNING] 잘못된 센서 데이터 길이: {len(values)}")
                     continue
 
-                if sensor_id in ['MPU2', 'MPU3']:
+                if sensor_id in REQUIRED_SENSORS:
                     mpu_temp[sensor_id] = np.array(values, dtype=np.int32)
 
-                # 두 센서 데이터가 모두 들어왔으면 합쳐서 모델 처리
-                if 'MPU2' in mpu_temp and 'MPU3' in mpu_temp:
-                    combined_row = np.concatenate([mpu_temp['MPU2'], mpu_temp['MPU3']])
+                # 모든 센서 데이터가 들어왔는지 확인
+                if all(s in mpu_temp for s in REQUIRED_SENSORS):
+                    # 항상 MPU1, MPU2, MPU3 순서로 합침
+                    combined_row = np.concatenate([mpu_temp[s] for s in REQUIRED_SENSORS])
                     mpu_temp.clear()  # 초기화
                     result = process_realtime_data(combined_row)
 
@@ -139,8 +141,8 @@ try:
                         print(f"[MODEL] 정상도: {normality_score}% | 동작: {class_name}")
 
                         if ser_esp:
-                            # 문자열 대신 숫자 ID로 전송
-                            class_id = CLASS_ID_MAP.get(class_name, 255)  # 알 수 없는 값이면 255
+                            # 문자열 대신 숫자 ID 전송
+                            class_id = CLASS_ID_MAP.get(class_name, 255)
                             ser_esp.write(bytes([normality_score, class_id]))
                             print(f"[ESP CSV] {normality_score},{class_id}")
 
