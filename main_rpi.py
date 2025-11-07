@@ -14,6 +14,7 @@ SCALER_MODEL2_PATH = 'multi_class_scaler_compatible.joblib'
 TFLITE_MODEL2_PATH = 'multi_class_model_compatible.tflite'
 
 CLASS_NAMES_MODEL2 = {0: "걷기", 1: "뛰기", 2: "정지"}
+CLASS_ID_MAP = {v: k for k, v in CLASS_NAMES_MODEL2.items()}  # 문자열 → 숫자 매핑
 
 # -----------------------------
 # 2. 모델 및 스케일러 로드
@@ -138,9 +139,10 @@ try:
                         print(f"[MODEL] 정상도: {normality_score}% | 동작: {class_name}")
 
                         if ser_esp:
-                            csv_line = f"{normality_score},{class_name}\n"
-                            ser_esp.write(csv_line.encode('utf-8'))
-                            print(f"[ESP CSV] {csv_line.strip()}")
+                            # 문자열 대신 숫자 ID로 전송
+                            class_id = CLASS_ID_MAP.get(class_name, 255)  # 알 수 없는 값이면 255
+                            ser_esp.write(bytes([normality_score, class_id]))
+                            print(f"[ESP CSV] {normality_score},{class_id}")
 
             except Exception as e:
                 print(f"[ERROR] 센서 데이터 파싱 실패: {line} -> {e}")
